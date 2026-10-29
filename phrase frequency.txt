@@ -1,0 +1,70 @@
+import sys
+
+for line in sys.stdin:
+    words = line.strip().lower().split()
+
+    for i in range(len(words) - 1):
+        phrase = words[i] + " " + words[i + 1]
+        print(phrase, 1, sep="\t")
+
+
+
+
+import sys
+
+current_phrase = None
+count = 0
+
+for line in sys.stdin:
+    phrase, value = line.strip().split("\t")
+    value = int(value)
+
+    if phrase == current_phrase:
+        count += value
+    else:
+        if current_phrase is not None:
+            print(current_phrase, count, sep="\t")
+
+        current_phrase = phrase
+        count = value
+
+if current_phrase is not None:
+    print(current_phrase, count, sep="\t")
+
+
+
+///
+for three word phrse :
+for i in range(len(words) - 2):
+    phrase = words[i] + " " + words[i+1] + " " + words[i+2]
+    print(phrase, 1, sep="\t")
+///
+
+
+
+
+
+
+
+
+
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("PhraseFrequency").getOrCreate()
+sc = spark.sparkContext
+
+lines = sc.textFile("/input/input.txt")
+
+phrases = lines.flatMap(
+    lambda line: [
+        (line.split()[i] + " " + line.split()[i+1], 1)
+        for i in range(len(line.split()) - 1)
+    ]
+)
+
+result = phrases.reduceByKey(lambda a, b: a + b)
+
+for phrase, count in result.collect():
+    print(phrase, count)
+
+spark.stop()
