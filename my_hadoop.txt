@@ -1,0 +1,62 @@
+hdfs dfs -mkdir -p /input
+hdfs dfs -put file.txt /input/
+hdfs dfs -ls /input
+hdfs dfs -cat /input/file.txt
+hdfs dfs -rm -r -f /output
+hdfs dfs -cat /output/part-*
+
+
+
+Hadoop jar path WordCount /input/file.txt /output
+
+hdfs dfs -cat /output/part-*
+
+hadoop jar <streaming-jar-path> \
+-files <mapper-file>,<reducer-file> \
+-mapper <mapper-command> \
+-reducer <reducer-command> \
+-input <hdfs-input-path> \
+-output <hdfs-output-path>
+-------------------------------------------------------------------------------
+find "$HADOOP_HOME" -name 'hadoop-streaming*.jar'
+OUTPUT OF ABOVE : /usr/local/hadoop/share/hadoop/tools/lib/hadoop-streaming-3.3.6.jar
+
+hadoop jar /usr/local/hadoop/share/hadoop/tools/lib/hadoop-streaming-3.3.6.jar \
+-files mapper.py,reducer.py \
+-mapper "python3 mapper.py" \
+-reducer "python3 reducer.py" \
+-input /input/input.txt \
+-output /output
+
+--------------------------------------------------------------------------------
+
+cd ~/Downloads
+
+cat input.txt | python3 mapper.py | sort | python3 reducer.py
+
+hdfs dfs -mkdir -p /input
+
+hdfs dfs -put -f input.txt /input/
+
+hdfs dfs -rm -r -f /output
+
+hadoop jar /path/to/hadoop-streaming.jar \
+-files mapper.py,reducer.py \
+-mapper "python3 mapper.py" \
+-reducer "python3 reducer.py" \
+-input /input/input.txt \
+-output /output
+
+hdfs dfs -cat /output/part-*
+
+-----------------------------------------------------------------------------
+
+Get-Content input.txt | python mapper.py | Sort-Object | python reducer.py
+
+type input.txt | python mapper.py | sort | python reducer.py
+
+
+dir /b "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming*.jar"
+
+hadoop jar "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar" -files mapper.py,reducer.py -mapper "python mapper.py" -reducer "python reducer.py" -input /input/input.txt -output /output
+--------------------------------------------------------------------------------

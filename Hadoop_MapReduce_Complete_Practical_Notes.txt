@@ -1,0 +1,435 @@
+HADOOP MAPREDUCE - COMPLETE PRACTICAL NOTES (WINDOWS CMD)
+=========================================================
+Based on the BDS SET 2 Part A: MapReduce (ODD and EVEN), plus practice examples.
+
+IMPORTANT
+---------
+- Commands below are for Windows CMD, NOT PowerShell, Linux, or WSL.
+- Hadoop, Java, Python, HDFS and YARN must be correctly installed/configured.
+- Your local files can be stored in: %USERPROFILE%\Downloads
+- HDFS paths (/input, /output) are NOT Windows folders.
+- Never create the Hadoop job's /output directory in advance.
+- Hadoop Streaming automatically shuffles and sorts mapper records by key.
+- Use ONE reducer (-numReduceTasks 1) for the top-product/top-3 logic here.
+- Examples assume simple comma-separated inputs WITHOUT headers.
+- Use unique input HDFS directories for each practical, or overwrite /input/input.txt.
+
+PART 1 - BASIC COMMANDS
+=======================
+
+WINDOWS CMD COMMANDS
+cd /d "%USERPROFILE%\Downloads"    Go to Downloads
+dir                                 List local files
+type input.txt                      Show local input file
+python --version                    Verify Python
+java -version                       Verify Java
+hadoop version                      Verify Hadoop
+where hadoop                        Locate Hadoop executable
+echo %HADOOP_HOME%                   Hadoop installation directory
+
+FIND THE STREAMING JAR
+ dir /b "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming*.jar"
+If HADOOP_HOME is not set, locate your Hadoop folder or try:
+ where /r C:\ hadoop-streaming*.jar
+A JAR name such as hadoop-streaming-3.3.6.jar is just an EXAMPLE.
+Use the actual name from your installed version. JAR path is not fixed for every PC.
+
+HDFS COMMANDS
+hdfs dfs -ls /                       List HDFS root
+hdfs dfs -mkdir -p /input             Create HDFS input folder
+hdfs dfs -put -f input.txt /input/    Upload/overwrite input file
+hdfs dfs -cat /input/input.txt        View uploaded file
+hdfs dfs -rm /input/input.txt         Delete an HDFS file
+hdfs dfs -rm -r -f /output            Remove previous output directory
+hdfs dfs -ls /output                  List output files
+hdfs dfs -cat /output/part-*          Display results
+hdfs dfs -get /output/part-00000 .    Download a result file
+hdfs dfs -du -h /input                Show file sizes
+hdfs dfs -count /input                Count dirs/files/bytes
+hdfs dfs -cp /input/a.txt /input/b.txt Copy a file in HDFS
+hdfs dfs -mv /input/a.txt /input/b.txt Rename/move a file
+
+IMPORTANT: hdfs dfs -rm -r -f /output DELETES /output; it DOES NOT create it.
+A successful Hadoop MapReduce job creates /output and files like part-00000 itself.
+Do NOT run hdfs dfs -mkdir /output before a MapReduce job.
+
+PART 2 - STANDARD EXAM EXECUTION (WINDOWS CMD)
+==============================================
+1) Put mapper.py, reducer.py and input.txt inside Downloads.
+2) Open Command Prompt (CMD).
+3) Run:
+
+cd /d "%USERPROFILE%\Downloads"
+dir
+hdfs dfs -mkdir -p /input
+hdfs dfs -put -f input.txt /input/
+hdfs dfs -cat /input/input.txt
+hdfs dfs -rm -r -f /output
+
+4) Find the exact Streaming JAR. Replace <VERSION> in the example command below:
+
+hadoop jar "%HADOOP_HOME%\share\hadoop\tools\lib\hadoop-streaming-<VERSION>.jar" -files mapper.py,reducer.py -mapper "python mapper.py" -reducer "python reducer.py" -input /input/input.txt -output /output -numReduceTasks 1
+
+5) Check output:
+hdfs dfs -ls /output
+hdfs dfs -cat /output/part-*
+
+NOTE: If your Hadoop Streaming build rejects -numReduceTasks at the end,
+place -D mapreduce.job.reduces=1 immediately after 'hadoop jar <JAR>' and
+before the Streaming-specific arguments.
+
+One commonly used generic-option arrangement is:
+hadoop jar "<ACTUAL_STREAMING_JAR_PATH>" -D mapreduce.job.reduces=1 -files mapper.py,reducer.py -mapper "python mapper.py" -reducer "python reducer.py" -input /input/input.txt -output /output
+
+LOCAL TESTING BEFORE RUNNING HADOOP (CMD)
+type input.txt | python mapper.py | sort | python reducer.py
+
+The CMD 'sort' command simulates Hadoop's key sorting for these simple examples.
+Hadoop automatically shuffles/sorts; DO NOT add a sort step in the Hadoop JAR command.
+When testing locally, CMD's sort uses system locale; simple IDs/words here are fine.
+
+PART 3 - PYTHON INPUT/OUTPUT BASICS
+===================================
+import sys                         Imports sys module
+for line in sys.stdin:             Reads input lines (from Hadoop or pipe)
+line.strip()                       Removes surrounding whitespace
+line.split(",")                    Splits comma-delimited fields
+print(key, value, sep="\t")       Prints key and value separated by a TAB
+line.strip().split("\t")          Reads the TAB-separated key and value
+sys.stdout                        Standard output; print() writes here
+
+Mapper uses sys.stdin to receive records, print() to emit (key, value).
+Reducer uses sys.stdin to receive sorted mapper pairs, print() for final result.
+The reducer scans the sorted records ONCE; no need to search prior words again.
+The final group must be printed AFTER the loop ends.
+
+PART 4 - PRACTICE: WORD COUNT
+=============================
+Problem: Count how often each word occurs.
+
+input.txt
+---------
+hello world
+hello hadoop
+hadoop world
+hello mapreduce
+
+mapper.py
+---------
+import sys
+
+for line in sys.stdin:
+    for word in line.strip().split():
+        print(word, 1, sep="\t")
+
+reducer.py
+----------
+import sys
+
+current_word = None
+count = 0
+
+for line in sys.stdin:
+    word, value = line.strip().split("\t")
+    value = int(value)
+
+    if word == current_word:
+        count += value
+    else:
+        if current_word is not None:
+            print(current_word, count, sep="\t")
+        current_word = word
+        count = value
+
+if current_word is not None:
+    print(current_word, count, sep="\t")
+
+Expected output
+---------------
+hadoop       2
+hello        3
+mapreduce    1
+world        2
+
+Local test:
+type input.txt | python mapper.py | sort | python reducer.py
+
+PART 5 - ODD EXAM: TOTAL SALES PER PRODUCT + TOP PRODUCT
+========================================================
+Question (BDS SET 2): Transaction logs contain timestamp, customer ID,
+product ID and purchase amount. Calculate total sales for each product and
+identify the top-selling product BY REVENUE.
+
+input.txt
+---------
+2026-01-01,C101,P1,500
+2026-01-01,C102,P2,300
+2026-01-02,C103,P1,700
+2026-01-02,C104,P3,200
+2026-01-03,C105,P2,400
+2026-01-03,C106,P1,300
+
+mapper.py
+---------
+import sys
+
+for line in sys.stdin:
+    data = line.strip().split(",")
+    if len(data) == 4:
+        product = data[2]
+        try:
+            amount = float(data[3])
+        except ValueError:
+            continue
+        print(product, amount, sep="\t")
+
+reducer.py
+----------
+import sys
+
+current_product = None
+total = 0
+top_product = None
+max_sales = -1
+
+for line in sys.stdin:
+    product, amount = line.strip().split("\t")
+    amount = float(amount)
+
+    if product == current_product:
+        total += amount
+    else:
+        if current_product is not None:
+            print(current_product, total, sep="\t")
+            if total > max_sales:
+                max_sales = total
+                top_product = current_product
+        current_product = product
+        total = amount
+
+if current_product is not None:
+    print(current_product, total, sep="\t")
+    if total > max_sales:
+        max_sales = total
+        top_product = current_product
+
+if top_product is not None:
+    print("TOP SELLING PRODUCT:", top_product, max_sales)
+
+Expected output (one reducer)
+-----------------------------
+P1    1500.0
+P2    700.0
+P3    200.0
+TOP SELLING PRODUCT: P1 1500.0
+
+Notes:
+- Mapper chooses index 2 for PRODUCT and index 3 for AMOUNT (0-based indexing).
+- Reducer sums per product and tracks highest revenue.
+- One reducer is necessary for GLOBAL top product in this simple solution.
+- For real money, use Decimal or integer paise instead of float.
+- In ties, this reducer keeps the first sorted product with max revenue.
+
+PART 6 - EVEN EXAM: AVG CALL DURATION PER TOWER + TOP 3
+=======================================================
+Question (BDS SET 2): Call records contain caller ID, receiver ID,
+tower ID, call duration, and call status. Calculate average call duration
+for each tower and show the three towers with the longest averages.
+
+input.txt
+---------
+C1,C2,T1,100,Completed
+C3,C4,T2,200,Completed
+C5,C6,T1,300,Completed
+C7,C8,T3,500,Completed
+C9,C10,T2,400,Completed
+C11,C12,T4,100,Completed
+C13,C14,T3,300,Completed
+
+mapper.py
+---------
+import sys
+
+for line in sys.stdin:
+    data = line.strip().split(",")
+    if len(data) == 5:
+        tower = data[2]
+        try:
+            duration = float(data[3])
+        except ValueError:
+            continue
+        print(tower, duration, sep="\t")
+
+reducer.py
+----------
+import sys
+
+current_tower = None
+total = 0
+count = 0
+averages = []
+
+for line in sys.stdin:
+    tower, duration = line.strip().split("\t")
+    duration = float(duration)
+
+    if tower == current_tower:
+        total += duration
+        count += 1
+    else:
+        if current_tower is not None:
+            avg = total / count
+            print(current_tower, avg, sep="\t")
+            averages.append((current_tower, avg))
+        current_tower = tower
+        total = duration
+        count = 1
+
+if current_tower is not None:
+    avg = total / count
+    print(current_tower, avg, sep="\t")
+    averages.append((current_tower, avg))
+
+averages.sort(key=lambda x: x[1], reverse=True)
+print("TOP 3 TOWERS:")
+for tower, avg in averages[:3]:
+    print(tower, avg, sep="\t")
+
+Expected output (one reducer)
+-----------------------------
+T1    200.0
+T2    300.0
+T3    400.0
+T4    100.0
+TOP 3 TOWERS:
+T3    400.0
+T2    300.0
+T1    200.0
+
+Notes:
+- Mapper chooses index 2 for TOWER and index 3 for DURATION.
+- Average = sum of durations / number of calls for a tower.
+- The provided question does not ask to filter by call status; all records
+  with valid durations are included. If asked 'completed calls only', add:
+  if data[4].strip().lower() != "completed":
+      continue
+  immediately before the mapper's print statement.
+- One reducer is needed for the GLOBAL top 3 in this simple solution.
+- The reducer saves one average per tower in a list to sort the top 3;
+  appropriate for small practical datasets, not huge distinct tower counts.
+
+PART 7 - EXTRA PRACTICE QUESTIONS THAT MAY BE ASKED
+===================================================
+A) Word Count ignoring capitalization:
+   mapper: word = word.lower() before print(word, 1, sep="\t")
+
+B) Count calls per tower (instead of average):
+   mapper: print(tower, 1, sep="\t")
+   reducer: Use Word Count reducer, replacing 'word' with 'tower'.
+
+C) Total call duration by tower (instead of average):
+   mapper: print(tower, duration, sep="\t")
+   reducer: Use sales reducer's sum logic, replacing product with tower,
+            but omit the top-product tracking if not asked.
+
+D) Highest-selling product by QUANTITY instead of REVENUE:
+   If one row equals one item purchased, print(product, 1, sep="\t")
+   and count per product. If the data includes a quantity column, sum
+   that quantity instead. 'Top-selling' is ambiguous; the ODD question
+   explicitly specifies 'by revenue', so use amount in your exam.
+
+E) Sales by customer instead of product:
+   mapper: customer = data[1]; amount = float(data[3])
+   print(customer, amount, sep="\t"); reduce by sum.
+
+F) Average purchase amount per product:
+   Use EVEN reducer's total/count logic, with product as the key.
+
+G) Failed calls only:
+   In a call-data mapper: if data[4].strip().lower() != "failed":
+       continue
+
+H) Top 5 towers instead of Top 3:
+   Change averages[:3] to averages[:5].
+
+I) Max and min duration per tower:
+   Track min_duration and max_duration while processing each tower group.
+
+PART 8 - COMMON ERRORS & FIXES
+==============================
+1. FileAlreadyExistsException: /output already exists
+   hdfs dfs -rm -r -f /output
+
+2. 'hadoop' is not recognized
+   Hadoop may be missing from PATH; check where hadoop and HADOOP_HOME.
+
+3. 'python' is not recognized
+   Install/configure Python or check python --version; ensure available
+   to the Hadoop worker process too.
+
+4. No such file: mapper.py / reducer.py
+   cd /d "%USERPROFILE%\Downloads" and check dir;
+   -files mapper.py,reducer.py must refer to existing local files.
+
+5. Input not found
+   hdfs dfs -ls /input
+   hdfs dfs -put -f input.txt /input/
+
+6. Output unexpectedly wrong
+   Check CSV column order and delimiters.
+   Test locally first: type input.txt | python mapper.py | sort | python reducer.py
+
+7. HDFS connection refused / name node inaccessible
+   Verify Hadoop filesystem services are correctly running and configured.
+
+8. Windows native library / winutils related errors
+   Some native Hadoop-on-Windows environments require compatible native
+   Hadoop binaries and correctly configured JAVA_HOME/HADOOP_HOME.
+
+9. Empty output / only _SUCCESS
+   Verify input data and whether mapper output is created; debug locally.
+
+10. Multiple reducers give several local winners
+    Set job reducers to 1 for a global top product or global top 3.
+
+PART 9 - VIVA / CONCEPTS
+========================
+Hadoop: Framework for distributed storage and processing.
+HDFS: Hadoop Distributed File System.
+MapReduce: Map -> Shuffle/Sort -> Reduce.
+YARN: Resource management and scheduling.
+NameNode: HDFS metadata manager.
+DataNode: Stores HDFS blocks.
+Mapper: Reads input and emits key-value pairs.
+Reducer: Processes sorted groups of key-value records.
+Shuffle: Transfers mapper output to correct reducer(s).
+Sort: Groups/sorts intermediate records by key before reduction.
+sys.stdin: Python standard input stream.
+sys.stdout: Python standard output stream, used by print().
+sep="\t": Separate printed values with a TAB.
+.split("\t"): Split line at TAB characters.
+-files mapper.py,reducer.py: Distributes scripts to worker tasks.
+-mapper "python mapper.py": Executes mapper via Python interpreter.
+-reducer "python reducer.py": Executes reducer via Python interpreter.
+-input: HDFS input path.
+-output: HDFS output directory that MUST NOT already exist.
+-numReduceTasks 1: One reducer for global top calculation in these examples.
+part-00000: One possible reducer output filename when a single reducer is used.
+_SUCCESS: Marker of a successfully completed Hadoop job (often present).
+
+KEY LOGIC TO REMEMBER
+=====================
+WORD COUNT  : emit (word, 1); sum counts per word.
+ODD SALES   : emit (product, amount); sum amounts; find max total.
+EVEN CALLS  : emit (tower, duration); total/count; sort averages descending;
+              display first three.
+
+BEFORE EXAM
+===========
+1. Confirm Python, Java, Hadoop commands work on your computer.
+2. Find the exact Streaming JAR path; do not assume 3.3.6.
+3. Ensure HDFS/YARN are running and accessible.
+4. Save scripts and input in Downloads; confirm extensions really are .py and .txt.
+5. Run local pipeline first, then HDFS upload, then Hadoop Streaming job.
+6. Delete existing /output BEFORE each repeated run.
+7. Run hdfs dfs -cat /output/part-* to see the result.

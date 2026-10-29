@@ -1,0 +1,1308 @@
+BIG DATA SYSTEMS - EXPANDED COMPLETE PRACTICAL EXAM HANDBOOK
+Based on our chat and BDS_SET_2.docx (Big Data Systems, Part B)
+============================================================
+
+CONTENTS
+1. Introduction, terminology, and basic database commands
+2. CRUD commands with syntax and examples
+3. Filters, operators, sorting, counting, and projection
+4. Aggregation stages, joins, dates, IDs, and extra commands
+5. EVEN SET: original data, CRUD examples, all five questions and answers
+6. ODD SET: original data, CRUD examples, all five questions and answers
+7. Quick exam command selection and final revision
+8. Tricky concepts and viva questions
+9. Extra MongoDB commands, syntax and examples
+10. Advanced exam variations for both sets
+11. Frequent errors, troubleshooting and practice advice
+12. Bonus: MapReduce Part A - EVEN and ODD problems
+
+HOW TO USE: Run these commands in MongoDB Shell (mongosh). The examples in
+Sections 1-4 are illustrative. The EVEN and ODD datasets in Sections 5 and 6
+preserve the sample fields and values supplied in the uploaded document.
+Run each dataset's insert commands only once; rerunning them with the same
+_id values produces duplicate-key errors. Avoid running destructive practice
+commands on the exam dataset before doing the questions.
+
+============================================================
+1. INTRODUCTION AND DATABASE COMMANDS
+============================================================
+MongoDB is a NoSQL document database. Documents are BSON objects similar to JSON.
+
+SQL term           MongoDB term
+Database           Database
+Table              Collection
+Row                Document
+Column             Field
+Primary key        _id
+JOIN               $lookup
+GROUP BY           $group
+
+Example document:
+{ name: "Rahul", age: 22, department: "IT", salary: 50000, is_permanent: true }
+
+Rules: Strings need quotes, numbers do not, booleans are true/false,
+field names are case-sensitive, and MongoDB creates an _id if omitted.
+
+1.1 SHOW DATABASES
+Syntax: show dbs
+Example: show dbs
+Purpose: List available databases.
+
+1.2 SELECT / CREATE DATABASE
+Syntax: use databaseName
+Example: use companyDB
+Purpose: Switch to database. A new database is actually stored when data is written.
+
+1.3 CURRENT DATABASE
+Syntax: db
+Example: db
+Purpose: Show name of current database.
+
+1.4 SHOW COLLECTIONS
+Syntax: show collections
+Example: show collections
+Purpose: List collections in the current database.
+
+1.5 CREATE COLLECTION
+Syntax: db.createCollection("collectionName")
+Example: db.createCollection("employees")
+Purpose: Create an empty collection. Inserting a document can also create one automatically.
+
+1.6 DROP COLLECTION
+Syntax: db.collectionName.drop()
+Example: db.employees.drop()
+WARNING: Deletes the entire collection and its documents.
+
+1.7 DROP DATABASE
+Syntax: db.dropDatabase()
+Example: use testDB   // then db.dropDatabase()
+WARNING: Deletes the current database.
+
+============================================================
+2. CRUD COMMANDS: CREATE, READ, UPDATE, DELETE
+============================================================
+The following sample records are for explanations only.
+
+2.1 INSERT ONE
+Syntax:
+db.collection.insertOne({ field1: value1, field2: value2 })
+Example:
+db.employees.insertOne({
+  name: "Rahul", salary: 50000, department: "IT", is_permanent: true
+})
+
+2.2 INSERT MANY
+Syntax:
+db.collection.insertMany([{...}, {...}])
+Example:
+db.employees.insertMany([
+  {name: "Rahul", salary: 50000, department: "IT", is_permanent: true},
+  {name: "Neha", salary: 85000, department: "HR", is_permanent: false},
+  {name: "Amit", salary: 120000, department: "IT", is_permanent: true}
+])
+NOTE: These practice inserts can create duplicate names if both 2.1 and 2.2
+are executed together. They are independent illustrations.
+
+2.3 FIND ALL
+Syntax: db.collection.find({})
+Example: db.employees.find()
+Purpose: Read all documents.
+
+2.4 FIND WITH CONDITION
+Syntax: db.collection.find({field: value})
+Example: db.employees.find({salary: 50000})
+
+2.5 FIND ONE
+Syntax: db.collection.findOne({field: value})
+Example: db.employees.findOne({department: "IT"})
+Purpose: Return one matching document.
+
+2.6 PROJECTION IN FIND
+Syntax: db.collection.find({condition}, {field1: 1, field2: 1, _id: 0})
+Example:
+db.employees.find({department: "IT"}, {name: 1, salary: 1, _id: 0})
+Meaning: 1 = include; 0 = exclude; _id is otherwise included by default.
+
+2.7 UPDATE ONE
+Syntax: db.collection.updateOne({condition}, {$set: {field: newValue}})
+Example:
+db.employees.updateOne({name: "Rahul"}, {$set: {salary: 60000}})
+
+2.8 UPDATE MANY
+Syntax: db.collection.updateMany({condition}, {$set: {field: value}})
+Example:
+db.employees.updateMany({department: "IT"}, {$set: {salary: 90000}})
+
+2.9 INCREMENT / DECREMENT USING $inc
+Syntax: db.collection.updateOne({condition}, {$inc: {numberField: amount}})
+Example increase:
+db.employees.updateOne({name: "Rahul"}, {$inc: {salary: 5000}})
+Example decrease:
+db.employees.updateOne({name: "Rahul"}, {$inc: {salary: -2000}})
+
+2.10 REMOVE A FIELD USING $unset
+Syntax: db.collection.updateOne({condition}, {$unset: {field: ""}})
+Example:
+db.employees.updateOne({name: "Rahul"}, {$unset: {department: ""}})
+Purpose: Removes a field, not the entire employee.
+
+2.11 DELETE ONE
+Syntax: db.collection.deleteOne({condition})
+Example: db.employees.deleteOne({name: "Rahul"})
+
+2.12 DELETE MANY
+Syntax: db.collection.deleteMany({condition})
+Example: db.employees.deleteMany({department: "IT"})
+
+2.13 DELETE ALL DOCUMENTS (KEEP COLLECTION)
+Syntax: db.collection.deleteMany({})
+Example: db.employees.deleteMany({})
+Difference: drop() deletes the collection; deleteMany({}) keeps the collection.
+
+============================================================
+3. FILTERS, OPERATORS, SORT, COUNT, PROJECTION
+============================================================
+3.1 COMPARISON OPERATORS
+$gt   greater than (>)             db.employees.find({salary: {$gt: 50000}})
+$gte  greater than/equal (>=)       db.employees.find({salary: {$gte: 50000}})
+$lt   less than (<)                db.employees.find({salary: {$lt: 50000}})
+$lte  less than/equal (<=)         db.employees.find({salary: {$lte: 50000}})
+$eq   equal (=)                    db.employees.find({salary: {$eq: 50000}})
+$ne   not equal (!=)               db.employees.find({salary: {$ne: 50000}})
+$in   matches a listed value       db.employees.find({salary: {$in: [50000, 85000]}})
+$nin  matches none of listed       db.employees.find({salary: {$nin: [50000, 85000]}})
+
+Range example (both bounds inclusive):
+db.employees.find({salary: {$gte: 50000, $lte: 100000}})
+
+3.2 IMPLICIT AND
+Syntax: db.collection.find({field1: value1, field2: value2})
+Example:
+db.employees.find({department: "IT", salary: {$gt: 60000}})
+
+3.3 EXPLICIT $and
+Syntax: db.collection.find({$and: [{condition1}, {condition2}]})
+Example:
+db.employees.find({
+  $and: [{department: "IT"}, {salary: {$gt: 60000}}]
+})
+
+3.4 $or
+Syntax: db.collection.find({$or: [{condition1}, {condition2}]})
+Example:
+db.employees.find({
+  $or: [{department: "IT"}, {salary: {$gt: 100000}}]
+})
+
+3.5 $not
+Syntax: db.collection.find({field: {$not: {operator: value}}})
+Example: db.employees.find({salary: {$not: {$gt: 50000}}})
+Note: Can also match documents missing the salary field.
+
+3.6 SORT
+Syntax: db.collection.find().sort({field: 1})     // ascending
+Syntax: db.collection.find().sort({field: -1})    // descending
+Examples:
+db.employees.find().sort({salary: 1})
+db.employees.find().sort({salary: -1})
+
+3.7 LIMIT
+Syntax: db.collection.find().limit(n)
+Example: db.employees.find().limit(3)
+Top three salaries:
+db.employees.find().sort({salary: -1}).limit(3)
+
+3.8 COUNT DOCUMENTS
+Syntax: db.collection.countDocuments({condition})
+Examples:
+db.employees.countDocuments({})
+db.employees.countDocuments({is_permanent: true})
+db.employees.countDocuments({department: "IT"})
+Count group-wise instead: $group with {$sum: 1}.
+
+3.9 DISTINCT
+Syntax: db.collection.distinct("field")
+Example: db.employees.distinct("department")
+Purpose: Unique department values.
+
+3.10 REGEX (PATTERN MATCHING)
+Syntax: db.collection.find({field: {$regex: "pattern", $options: "i"}})
+Starts with A: db.employees.find({name: {$regex: "^A"}})
+Contains ra ignoring case:
+db.employees.find({name: {$regex: "ra", $options: "i"}})
+
+3.11 EXISTS
+Syntax: db.collection.find({field: {$exists: true}})
+Example: db.employees.find({salary: {$exists: true}})
+
+3.12 UPSERT
+Syntax: db.collection.updateOne({condition}, {$set: {field: value}}, {upsert: true})
+Example:
+db.employees.updateOne(
+  {name: "Karan"}, {$set: {salary: 70000}}, {upsert: true}
+)
+Purpose: Update if matched; otherwise insert a new document.
+
+============================================================
+4. AGGREGATION, JOINS, DATES, IDs, NESTED FIELDS
+============================================================
+4.1 AGGREGATE PIPELINE
+Syntax:
+db.collection.aggregate([
+  {$match: {condition}},
+  {$group: {_id: "$groupField", total: {$sum: "$numberField"}}},
+  {$sort: {total: -1}},
+  {$limit: 3}
+])
+Each stage processes documents passed from the previous stage.
+
+4.2 $match = FILTER
+Syntax: {$match: {field: value}}
+Example: db.employees.aggregate([{$match: {department: "IT"}}])
+
+4.3 $group = GROUP BY
+Syntax:
+{$group: {_id: "$fieldToGroupBy", result: {operator: "$numberField"}}}
+Important: "$department" refers to values of the department field.
+
+4.4 $sum OF FIELD = TOTAL
+Example:
+db.employees.aggregate([
+  {$group: {_id: "$department", total: {$sum: "$salary"}}}
+])
+For initial example rows: IT = 170000; HR = 85000.
+
+4.5 $avg = AVERAGE
+Example:
+db.employees.aggregate([
+  {$group: {_id: "$department", average: {$avg: "$salary"}}}
+])
+For initial sample rows: IT = 85000; HR = 85000.
+
+4.6 $sum: 1 = COUNT WITHIN EACH GROUP
+Example:
+db.employees.aggregate([
+  {$group: {_id: "$department", count: {$sum: 1}}}
+])
+For initial sample rows: IT = 2; HR = 1.
+
+4.7 $max AND $min
+Example:
+db.employees.aggregate([
+  {$group: {
+    _id: "$department",
+    highest: {$max: "$salary"},
+    lowest: {$min: "$salary"}
+  }}
+])
+
+4.8 COMBINE $match + $group + $sort
+Example (permanent employees department-wise, most first):
+db.employees.aggregate([
+  {$match: {is_permanent: true}},
+  {$group: {_id: "$department", count: {$sum: 1}}},
+  {$sort: {count: -1}}
+])
+
+4.9 $lookup = JOIN COLLECTIONS
+Syntax:
+db.collection1.aggregate([
+  {$lookup: {
+    from: "collection2",
+    localField: "foreignKeyInCollection1",
+    foreignField: "_id",
+    as: "joinedData"
+  }}
+])
+Example:
+db.employees.aggregate([
+  {$lookup: {
+    from: "companies", localField: "company_id",
+    foreignField: "_id", as: "company"
+  }}
+])
+Joined results appear as an ARRAY under "company".
+
+4.10 $unwind = ARRAY TO INDIVIDUAL RECORD
+Syntax: {$unwind: "$arrayField"}
+Example:
+db.employees.aggregate([
+  {$lookup: {
+    from: "companies", localField: "company_id",
+    foreignField: "_id", as: "company"
+  }},
+  {$unwind: "$company"}
+])
+Note: By default, employees with no matched company are removed by $unwind.
+
+4.11 $project = SELECT OR RENAME OUTPUT FIELDS
+Syntax: {$project: {_id: 0, field: 1, alias: "$originalField"}}
+Example 1:
+db.employees.aggregate([{$project: {_id: 0, name: 1, salary: 1}}])
+Example 2:
+db.employees.aggregate([{
+  $project: {_id: 0, employeeName: "$name", employeeSalary: "$salary"}
+}])
+
+4.12 NESTED FIELDS (DOT NOTATION)
+Example document: {location: {city: "Pune", state: "Maharashtra"}}
+Syntax: db.collection.find({"parent.child": value})
+Example: db.companies.find({"location.state": "Maharashtra"})
+
+4.13 ISODate() FOR DATES
+Example document: {event_type: "Wedding", booking_date: ISODate("2024-11-10")}
+Before January 2025:
+db.bookings.find({booking_date: {$lt: ISODate("2025-01-01")}})
+During 2024:
+db.bookings.find({booking_date: {
+  $gte: ISODate("2024-01-01"), $lt: ISODate("2025-01-01")
+}})
+
+4.14 ObjectId() FOR IDs
+Syntax: ObjectId("24-hex-character-id")
+Example:
+db.companies.find({_id: ObjectId("66f9ec22c285cc42f4853b210")})
+String values and ObjectId values are different types.
+
+4.15 COMPLETE JOIN + FILTER + PROJECTION EXAMPLE
+Employees belonging to companies located in Maharashtra:
+db.employees.aggregate([
+  {$lookup: {
+    from: "companies", localField: "company_id",
+    foreignField: "_id", as: "company"
+  }},
+  {$unwind: "$company"},
+  {$match: {"company.location.state": "Maharashtra"}},
+  {$project: {_id: 0, name: 1, company_name: "$company.company_name"}}
+])
+
+QUICK OPERATOR MEANINGS
+$gt >; $gte >=; $lt <; $lte <=; $eq =; $ne !=
+$in: in list; $nin: not in list; $and: all; $or: any
+$match: filter; $group: group; $sum: sum/count; $avg: average
+$max/$min: maximum/minimum; $sort: sort; $limit: first n
+$lookup: join; $unwind: flatten array; $project: output fields
+
+============================================================
+5. EVEN SET: COMPANY AND EMPLOYEE MANAGEMENT SYSTEM
+============================================================
+ORIGINAL DOCUMENT INSTRUCTIONS:
+Create a database on MongoDB for a company and its employees. Perform CRUD
+operations and execute the five given queries as per the given structure.
+
+5.1 CREATE DATABASE AND COLLECTIONS
+use companyDB
+db.createCollection("companies")
+db.createCollection("employees")
+show collections
+
+5.2 ORIGINAL COMPANIES DATA
+db.companies.insertOne({
+  _id: ObjectId("66f9ec22c285cc42f4853b210"),
+  company_name: "TechNova Solutions",
+  industry: "Information Technology",
+  location: {city: "Pune", state: "Maharashtra", country: "India"},
+  established_year: 2010,
+  total_employees: 250
+})
+
+5.3 ORIGINAL EMPLOYEES DATA
+db.employees.insertMany([
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b212"),
+    name: "Neha Verma",
+    designation: "Software Engineer",
+    salary: 85000,
+    department: "Development",
+    company_id: ObjectId("66f9ec22c285cc42f4853b210"),
+    is_permanent: true
+  },
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b213"),
+    name: "Rahul Iyer",
+    designation: "Project Manager",
+    salary: 120000,
+    department: "Operations",
+    company_id: ObjectId("66f9ec22c285cc42f4853b211"),
+    is_permanent: false
+  }
+])
+
+IMPORTANT ORIGINAL-DATA NOTE: Rahul Iyer has company_id ending in 211 but
+only company _id ending in 210 was supplied. Do not silently change the data.
+A lookup will not find Rahul's referenced company unless it is also inserted.
+
+5.4 VERIFY INSERTS
+db.companies.find()
+db.employees.find()
+
+5.5 CRUD EXAMPLES (EXTRA PRACTICE; NOT FIXED QUESTIONS)
+Create: already demonstrated by insertOne and insertMany above.
+Read: db.employees.find()
+Update:
+db.employees.updateOne({name: "Neha Verma"}, {$set: {salary: 90000}})
+Delete:
+db.employees.deleteOne({name: "Neha Verma"})
+WARNING: Updating or deleting Neha changes the results below; use these
+commands only for the separate CRUD demonstration or restore initial data.
+
+EVEN QUESTION 1
+Q: Write a MongoDB query to display all employees earning more than Rs 1,00,000.
+Answer:
+db.employees.find({salary: {$gt: 100000}})
+Explanation: $gt = strictly greater than 100000.
+Expected match on original data: Rahul Iyer, salary 120000.
+
+EVEN QUESTION 2
+Q: Write a MongoDB query to find all companies established after 2012 in the IT industry.
+Answer:
+db.companies.find({
+  established_year: {$gt: 2012},
+  industry: "Information Technology"
+})
+Explanation: Both conditions must be true (implicit AND).
+Expected match on original data: None (TechNova was established in 2010).
+
+EVEN QUESTION 3
+Q: Write a MongoDB query to count the number of permanent employees in each company.
+Answer:
+db.employees.aggregate([
+  {$match: {is_permanent: true}},
+  {$group: {_id: "$company_id", count: {$sum: 1}}}
+])
+Explanation: Filter permanent employees, group by company_id, count each.
+Expected result: company_id 66f9ec22c285cc42f4853b210 -> count 1.
+Note: Companies with zero permanent employees won't be listed by this query.
+
+EVEN QUESTION 4
+Q: Write a MongoDB query to list all employees belonging to companies located in Maharashtra.
+Answer:
+db.employees.aggregate([
+  {$lookup: {
+    from: "companies", localField: "company_id",
+    foreignField: "_id", as: "company"
+  }},
+  {$unwind: "$company"},
+  {$match: {"company.location.state": "Maharashtra"}}
+])
+Explanation: Join employees -> companies, flatten company array, filter state.
+Expected matching employee: Neha Verma.
+Optional add to pipeline for names only:
+{$project: {_id: 0, name: 1, company_name: "$company.company_name"}}
+Note: Rahul's referenced company is absent in the original sample.
+
+EVEN QUESTION 5
+Q: Write a MongoDB query to find the average salary of employees department-wise.
+Answer:
+db.employees.aggregate([
+  {$group: {_id: "$department", average_salary: {$avg: "$salary"}}}
+])
+Explanation: Group by department, then average each salary group.
+Expected results on original data:
+Development -> 85000
+Operations  -> 120000
+
+============================================================
+6. ODD SET: PARTY PLOT MANAGEMENT SYSTEM
+============================================================
+ORIGINAL DOCUMENT INSTRUCTIONS:
+Create a MongoDB database for a Party Plot Management System storing customer
+and booking information. Perform CRUD and answer five questions.
+
+6.1 CREATE DATABASE AND COLLECTIONS
+use partyPlotDB
+db.createCollection("customers")
+db.createCollection("party_plots")
+db.createCollection("bookings")
+show collections
+
+6.2 ORIGINAL CUSTOMERS DATA
+db.customers.insertMany([
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b220"),
+    name: "Sanjay Patel",
+    email: "sanjay.patel@example.com",
+    phone: "9876543210",
+    membership_type: "Regular",
+    city: "Ahmedabad",
+    is_active: true
+  },
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b221"),
+    name: "Megha Shah",
+    email: "megha.shah@example.com",
+    phone: "9865321470",
+    membership_type: "Occasional",
+    city: "Vadodara",
+    is_active: true
+  }
+])
+
+6.3 ORIGINAL PARTY PLOTS DATA
+db.party_plots.insertMany([
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b222"),
+    plot_name: "Royal Garden",
+    location: "S.G. Highway, Ahmedabad",
+    capacity: 500,
+    price_per_day: 75000,
+    available: true
+  },
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b223"),
+    plot_name: "Green Valley Lawn",
+    location: "Gotri, Vadodara",
+    capacity: 300,
+    price_per_day: 50000,
+    available: true
+  }
+])
+
+6.4 ORIGINAL BOOKINGS DATA
+db.bookings.insertMany([
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b224"),
+    customer_id: ObjectId("66f9ec22c285cc42f4853b220"),
+    plot_id: ObjectId("66f9ec22c285cc42f4853b222"),
+    event_type: "Wedding",
+    booking_date: ISODate("2024-11-10"),
+    total_amount: 150000,
+    status: "Confirmed"
+  },
+  {
+    _id: ObjectId("66f9ec22c285cc42f4853b225"),
+    customer_id: ObjectId("66f9ec22c285cc42f4853b221"),
+    plot_id: ObjectId("66f9ec22c285cc42f4853b223"),
+    event_type: "Birthday",
+    booking_date: ISODate("2024-09-20"),
+    total_amount: 60000,
+    status: "Completed"
+  }
+])
+
+6.5 VERIFY INSERTS
+db.customers.find()
+db.party_plots.find()
+db.bookings.find()
+
+6.6 CRUD EXAMPLES (EXTRA PRACTICE)
+Create:
+db.customers.insertOne({
+  name: "Amit Shah", email: "amit@example.com", city: "Surat",
+  membership_type: "Regular", is_active: true
+})
+Read: db.customers.find()
+Update:
+db.customers.updateOne({name: "Amit Shah"}, {$set: {city: "Ahmedabad"}})
+Delete:
+db.customers.deleteOne({name: "Amit Shah"})
+The added Amit record is removed in this demonstration, leaving originals.
+
+ODD QUESTION 1
+Q: Write a MongoDB query to display all customers with 'Regular' membership type.
+Answer:
+db.customers.find({membership_type: "Regular"})
+Explanation: Find documents where membership_type is Regular.
+Expected result: Sanjay Patel (Ahmedabad).
+
+ODD QUESTION 2
+Q: Write a MongoDB query to list all available party plots with capacity greater than 400.
+Answer:
+db.party_plots.find({available: true, capacity: {$gt: 400}})
+Explanation: Both available=true and capacity>400 are required.
+Expected result: Royal Garden, capacity 500, price/day 75000.
+
+ODD QUESTION 3
+Q: Write a MongoDB query to display all bookings where the event type is
+'Wedding' and the booking date is before January 2025.
+Answer:
+db.bookings.find({
+  event_type: "Wedding",
+  booking_date: {$lt: ISODate("2025-01-01")}
+})
+Explanation: Match Wedding AND date earlier than 2025-01-01.
+Expected result: Wedding, 2024-11-10, total_amount 150000.
+
+ODD QUESTION 4
+Q: Write a MongoDB query to calculate the total booking amount received for each event type.
+Answer:
+db.bookings.aggregate([
+  {$group: {_id: "$event_type", total: {$sum: "$total_amount"}}}
+])
+Explanation: Group by event_type, add total_amount within each event type.
+Expected result: Wedding -> 150000; Birthday -> 60000 (order unspecified).
+Note: This sums stored booking amounts; no payment_received field is present
+in the provided schema.
+
+ODD QUESTION 5
+Q: Write a MongoDB query to display customer names along with their booked party plot names.
+Answer:
+db.bookings.aggregate([
+  {$lookup: {
+    from: "customers", localField: "customer_id",
+    foreignField: "_id", as: "customer"
+  }},
+  {$unwind: "$customer"},
+  {$lookup: {
+    from: "party_plots", localField: "plot_id",
+    foreignField: "_id", as: "plot"
+  }},
+  {$unwind: "$plot"},
+  {$project: {
+    _id: 0,
+    customer_name: "$customer.name",
+    plot_name: "$plot.plot_name"
+  }}
+])
+Explanation: Join bookings->customers and bookings->party_plots; unwind
+both arrays, then select the customer name and party plot name.
+Expected results:
+Sanjay Patel -> Royal Garden
+Megha Shah  -> Green Valley Lawn
+
+============================================================
+7. FAST EXAM REVISION: QUESTION WORDS -> COMMANDS
+============================================================
+Display all                          find()
+Display one                          findOne()
+Insert one / many                    insertOne() / insertMany()
+Update one / many                    updateOne() / updateMany(), $set
+Increase a number                   $inc
+Remove a field                      $unset
+Delete one / many                    deleteOne() / deleteMany()
+More than / greater than            $gt
+At least / greater than or equal    $gte
+Less than / before                  $lt
+At most / less than or equal        $lte
+Equal / not equal                   $eq / $ne
+In a set / not in a set             $in / $nin
+Both conditions                     implicit AND / $and
+Either condition                    $or
+Sort low-to-high / high-to-low      sort({field: 1}) / sort({field: -1})
+Top N                                sort() + limit(N)
+Count matching documents             countDocuments({condition})
+Count per department/company        $group + {$sum: 1}
+Total per department/event          $group + {$sum: "$amount"}
+Average per department              $group + {$avg: "$salary"}
+Highest / lowest within group       $max / $min
+Filter pipeline                     $match
+Join related collections            $lookup
+Flatten join result                 $unwind
+Choose/rename output fields        $project
+Nested object fields                "location.state"
+Date comparisons                    ISODate() + $lt/$gte
+Find ObjectId                       ObjectId("...")
+Find unique values                  distinct()
+Name/text patterns                  $regex
+Field present                       $exists
+Update or insert                    updateOne(..., {upsert: true})
+
+ESSENTIAL SHORT ANSWERS
+EVEN 1: db.employees.find({salary: {$gt: 100000}})
+EVEN 2: db.companies.find({established_year: {$gt: 2012}, industry: "Information Technology"})
+EVEN 3: db.employees.aggregate([{$match: {is_permanent: true}}, {$group: {_id: "$company_id", count: {$sum: 1}}}])
+EVEN 4: $lookup companies -> $unwind company -> $match company.location.state = Maharashtra
+EVEN 5: db.employees.aggregate([{$group: {_id: "$department", average_salary: {$avg: "$salary"}}}])
+ODD 1: db.customers.find({membership_type: "Regular"})
+ODD 2: db.party_plots.find({available: true, capacity: {$gt: 400}})
+ODD 3: db.bookings.find({event_type: "Wedding", booking_date: {$lt: ISODate("2025-01-01")}})
+ODD 4: db.bookings.aggregate([{$group: {_id: "$event_type", total: {$sum: "$total_amount"}}}])
+ODD 5: $lookup customers -> $unwind customer -> $lookup party_plots -> $unwind plot -> $project names
+
+
+======================================================================
+8. TRICKY CONCEPTS AND VIVA QUESTIONS (EXTRA EXAM PREPARATION)
+======================================================================
+The earlier EVEN and ODD datasets/questions are from the supplied document.
+Sections 8-11 are additional practice and explanations, NOT questions from
+that document. Unless stated otherwise, do not run mutating examples on the
+original exam collections before checking their expected answers.
+
+TRICK 1: $sum: 1 versus $sum: "$salary"
+Syntax:
+  {$group: {_id: "$department", count: {$sum: 1}}}
+  {$group: {_id: "$department", total: {$sum: "$salary"}}}
+Examples:
+  db.employees.aggregate([{$group: {_id: "$department", count: {$sum: 1}}}])
+  db.employees.aggregate([{$group: {_id: "$department", total: {$sum: "$salary"}}}])
+$count employees versus add the numeric salary values.
+
+TRICK 2: "$department" versus "department"
+  {$group: {_id: "$department", count: {$sum: 1}}} // group by actual field
+  {$group: {_id: "department", count: {$sum: 1}}}  // one literal group
+Dollar-prefixed field paths in aggregation reference document fields.
+Note: operators such as $sum are also dollar-prefixed, but have a separate role.
+
+TRICK 3: find() versus $match
+Syntax:
+  db.collection.find({condition})
+  db.collection.aggregate([{$match: {condition}}])
+Examples:
+  db.employees.find({salary: {$gt: 50000}})
+  db.employees.aggregate([{$match: {salary: {$gt: 50000}}}])
+Use find() for straightforward retrieval; $match filters within pipelines.
+
+TRICK 4: $lookup versus $unwind
+$lookup creates an array of matches; $unwind emits one document per element.
+Syntax:
+  {$lookup: {from: "companies", localField: "company_id",
+             foreignField: "_id", as: "company"}}
+  {$unwind: "$company"}
+If there are no matches, $lookup sets company: []. A default $unwind then
+removes the row FROM PIPELINE RESULTS, not from the database.
+Preserve missing joins when needed:
+  {$unwind: {path: "$company", preserveNullAndEmptyArrays: true}}
+Example:
+  db.employees.aggregate([
+    {$lookup: {from: "companies", localField: "company_id",
+               foreignField: "_id", as: "company"}},
+    {$unwind: {path: "$company", preserveNullAndEmptyArrays: true}}
+  ])
+
+TRICK 5: ObjectId versus strings
+  ObjectId("66f9ec22c285cc42f4853b210")  // BSON ObjectId
+  "66f9ec22c285cc42f4853b210"            // BSON string
+These are different types and do not match in simple equality lookups.
+Example:
+  db.companies.find({_id: ObjectId("66f9ec22c285cc42f4853b210")})
+
+TRICK 6: Dates and boundaries
+  {$lt: ISODate("2025-01-01")}   // strictly before 2025-01-01 00:00 UTC
+  {$lte: ISODate("2025-01-01")}  // at/before that exact instant
+For all of January 1 UTC use:
+  {booking_date: {$gte: ISODate("2025-01-01"),
+                  $lt: ISODate("2025-01-02")}}
+ISODate without an offset interprets the date at midnight UTC in mongosh.
+If the question says "before January 2025", use $lt January 1, 2025.
+
+TRICK 7: Second-highest employee versus second-highest DISTINCT salary
+Employee ranked second by salary:
+  db.employees.find().sort({salary: -1, _id: 1}).skip(1).limit(1)
+Second DISTINCT salary:
+  db.employees.aggregate([
+    {$group: {_id: "$salary"}},
+    {$sort: {_id: -1}},
+    {$skip: 1},
+    {$limit: 1}
+  ])
+Different employees can have the same salary, so these mean different things.
+
+TRICK 8: $push versus $addToSet
+Within $group:
+  db.employees.aggregate([{$group: {
+    _id: "$department", all_names: {$push: "$name"},
+    unique_names: {$addToSet: "$name"}
+  }}])
+$push collects all values (duplicates retained); $addToSet collects unique
+values. The order of grouped arrays is not guaranteed without preparation.
+
+TRICK 9: Count by customer, not total overall
+  db.bookings.aggregate([
+    {$group: {_id: "$customer_id", total_bookings: {$sum: 1}}}
+  ])
+This displays IDs. Add $lookup to display names.
+
+TRICK 10: Customer has no booking
+  db.customers.aggregate([
+    {$lookup: {from: "bookings", localField: "_id",
+               foreignField: "customer_id", as: "bookings"}},
+    {$match: {bookings: {$size: 0}}}
+  ])
+Note: In the source sample, both customers have one booking, so the result is empty.
+
+TRICK 11: Stage order can change results
+  db.bookings.aggregate([
+    {$match: {status: "Confirmed"}},
+    {$group: {_id: "$event_type", total: {$sum: "$total_amount"}}},
+    {$sort: {total: -1}},
+    {$limit: 3}
+  ])
+Filtering before grouping counts only confirmed booking amounts. Sorting and
+limiting after grouping find the 3 highest-total EVENT TYPES, not individual
+bookings. Do NOT add the status filter to original ODD Question 4: it wasn't
+requested, and its wording doesn't provide a paid/received flag.
+
+TRICK 12: "total_employees" versus actual employee-document count
+The company's stored total_employees=250 is a company attribute, while only
+one employee document refers to TechNova in the provided sample. Do not
+confuse the stored field with the count of supplied employees.
+
+TRICK 13: $count stage versus $sum: 1
+  db.employees.aggregate([{$match: {is_permanent: true}},
+                          {$count: "total_permanent"}])
+Counts documents in the whole current stream (a single output document).
+  db.employees.aggregate([{$match: {is_permanent: true}},
+       {$group: {_id: "$company_id", count: {$sum: 1}}}])
+Counts separately for each company ID.
+
+TRICK 14: Empty results are not always incorrect
+In the exact EVEN sample, Q2 produces [] because the sole company was
+established in 2010. Q4 excludes Rahul because the company ending in 211
+is not supplied. Do not secretly change the source sample to force results.
+
+======================================================================
+9. EXTRA MONGODB COMMANDS - SYNTAX AND EXAMPLES
+======================================================================
+Use students as a separate illustration collection, not an original dataset.
+Seed if you want to run array examples:
+  db.students.insertMany([
+    {name: "Rahul", skills: ["Python", "MongoDB"]},
+    {name: "Neha", skills: ["MongoDB", "Java", "Python"]}
+  ])
+
+9.1 $push - append to array (can duplicate)
+Syntax:
+  db.collection.updateOne({filter}, {$push: {arrayField: value}})
+Example:
+  db.students.updateOne({name: "Rahul"}, {$push: {skills: "MongoDB"}})
+
+9.2 $addToSet - append only if element is not already present
+Syntax:
+  db.collection.updateOne({filter}, {$addToSet: {arrayField: value}})
+Example:
+  db.students.updateOne({name: "Rahul"}, {$addToSet: {skills: "MongoDB"}})
+
+9.3 $pull - remove matching array values
+Syntax:
+  db.collection.updateOne({filter}, {$pull: {arrayField: value}})
+Example:
+  db.students.updateOne({name: "Rahul"}, {$pull: {skills: "Python"}})
+
+9.4 $all - array must contain all listed values
+Syntax:
+  db.collection.find({arrayField: {$all: [v1, v2]}})
+Example:
+  db.students.find({skills: {$all: ["Python", "MongoDB"]}})
+
+9.5 $size - array has exact length
+Syntax:
+  db.collection.find({arrayField: {$size: n}})
+Example:
+  db.students.find({skills: {$size: 3}})
+
+9.6 skip() - skip first N results
+Syntax:
+  db.collection.find().sort({field: 1}).skip(N).limit(M)
+Example:
+  db.employees.find().sort({_id: 1}).skip(5).limit(5)
+Sort consistently before paging; sorting without a unique tie breaker can
+produce unstable page membership when records have equal values.
+
+9.7 $count - count aggregation output
+Syntax:
+  db.collection.aggregate([{$match: {filter}}, {$count: "resultName"}])
+Example:
+  db.employees.aggregate([
+    {$match: {is_permanent: true}}, {$count: "permanent_count"}
+  ])
+
+9.8 createIndex() - create an index
+Syntax:
+  db.collection.createIndex({field: 1})
+Example:
+  db.employees.createIndex({salary: 1})
+Unique index example:
+  db.customers.createIndex({email: 1}, {unique: true})
+Indexes may help reads, cost memory/disk and write overhead. A unique index
+creation may fail if duplicates already exist.
+
+9.9 getIndexes(), dropIndex() - list/remove indexes
+Syntax and examples:
+  db.employees.getIndexes()
+  db.employees.dropIndex("salary_1")
+Do not confuse dropIndex with drop(), which removes the collection.
+
+9.10 replaceOne() - replace a whole matching document except _id
+Syntax:
+  db.collection.replaceOne({filter}, {replacementFields})
+Example (practice only):
+  db.students.replaceOne({name: "Neha"},
+    {name: "Neha", skills: ["MongoDB"]})
+WARNING: fields omitted from replacement are removed.
+
+9.11 $rename - rename an existing field
+Syntax:
+  db.collection.updateMany({filter}, {$rename: {oldName: "newName"}})
+Example (practice only):
+  db.students.updateMany({}, {$rename: {skills: "technologies"}})
+
+9.12 $elemMatch - match an array element satisfying combined criteria
+Example (hypothetical scores array):
+  db.students.find({scores: {$elemMatch: {subject: "Math", marks: {$gt: 80}}}})
+Both criteria must occur within the SAME array element.
+
+9.13 $not and $nor
+Syntax and examples:
+  db.employees.find({salary: {$not: {$gt: 50000}}})
+  db.employees.find({$nor: [{department: "IT"}, {salary: {$gt: 100000}}]})
+$not may include docs missing that field. $nor excludes docs satisfying ANY
+of its conditions.
+
+9.14 $type - match BSON type
+Example:
+  db.employees.find({salary: {$type: "number"}})
+Useful if imported numbers accidentally become strings.
+
+9.15 $ifNull - use default for missing or null aggregation values
+Example:
+  db.employees.aggregate([
+    {$project: {name: 1, department: {$ifNull: ["$department", "Unknown"]}}}
+  ])
+
+9.16 $set stage - add/compute a field within aggregation
+Example:
+  db.employees.aggregate([{$set: {yearly_salary: {$multiply: ["$salary", 12]}}}])
+The aggregation $set stage changes only pipeline results, NOT saved documents.
+Contrast updateOne(..., {$set: ...}) which does change stored documents.
+
+9.17 explain() - look at a query plan
+Example:
+  db.employees.find({salary: {$gt: 100000}}).explain("executionStats")
+Useful to see whether an index is used (such as IXSCAN vs COLLSCAN).
+
+9.18 Regex and escaping
+Example:
+  db.customers.find({name: {$regex: "^S", $options: "i"}})
+^ matches string start; i enables case-insensitive matching. Regex is not
+always the best-performing choice on large collections.
+
+======================================================================
+10. EXTRA EXAM-TYPE QUESTIONS WITH ANSWERS
+======================================================================
+These are NEW PRACTICE QUESTIONS, not in the uploaded question sheet.
+
+EVEN EXTRA 1. Show top 2 highest-paid employees.
+Answer:
+  db.employees.find().sort({salary: -1, _id: 1}).limit(2)
+Why: -1 sorts descending; limit returns at most 2 documents.
+
+EVEN EXTRA 2. Find the highest salary department-wise.
+Answer:
+  db.employees.aggregate([
+    {$group: {_id: "$department", highest: {$max: "$salary"}}}
+  ])
+
+EVEN EXTRA 3. List department-wise names (unique employees).
+Answer:
+  db.employees.aggregate([
+    {$group: {_id: "$department", names: {$addToSet: "$name"}}}
+  ])
+
+EVEN EXTRA 4. Find how many employee records have a company ID for which
+there is NO matching company document.
+Answer:
+  db.employees.aggregate([
+    {$lookup: {from: "companies", localField: "company_id",
+               foreignField: "_id", as: "company"}},
+    {$match: {company: {$size: 0}}},
+    {$count: "unmatched_employees"}
+  ])
+Expected with source sample: 1 (Rahul).
+
+EVEN EXTRA 5. Display employee name and company name even if no company
+matches (show null/missing company name when unmatched).
+Answer:
+  db.employees.aggregate([
+    {$lookup: {from: "companies", localField: "company_id",
+               foreignField: "_id", as: "company"}},
+    {$unwind: {path: "$company", preserveNullAndEmptyArrays: true}},
+    {$project: {_id: 0, name: 1,
+                company_name: {$ifNull: ["$company.company_name", "Not found"]}}}
+  ])
+
+ODD EXTRA 1. Count bookings event-wise.
+Answer:
+  db.bookings.aggregate([
+    {$group: {_id: "$event_type", bookings: {$sum: 1}}}
+  ])
+
+ODD EXTRA 2. Show top 2 event types by total amount.
+Answer:
+  db.bookings.aggregate([
+    {$group: {_id: "$event_type", total: {$sum: "$total_amount"}}},
+    {$sort: {total: -1}},
+    {$limit: 2}
+  ])
+
+ODD EXTRA 3. Display customers who have made NO bookings.
+Answer:
+  db.customers.aggregate([
+    {$lookup: {from: "bookings", localField: "_id",
+               foreignField: "customer_id", as: "bookings"}},
+    {$match: {bookings: {$size: 0}}}
+  ])
+Expected from original data: no records.
+
+ODD EXTRA 4. Count number of bookings customer-wise with customer name.
+Answer:
+  db.bookings.aggregate([
+    {$group: {_id: "$customer_id", total_bookings: {$sum: 1}}},
+    {$lookup: {from: "customers", localField: "_id",
+               foreignField: "_id", as: "customer"}},
+    {$unwind: "$customer"},
+    {$project: {_id: 0, customer_name: "$customer.name", total_bookings: 1}}
+  ])
+
+ODD EXTRA 5. Find booking amounts for confirmed weddings only.
+Answer:
+  db.bookings.find({event_type: "Wedding", status: "Confirmed"},
+                   {event_type: 1, total_amount: 1, _id: 0})
+
+ODD EXTRA 6. Find plots whose price per day is between 50000 and 80000,
+inclusive.
+Answer:
+  db.party_plots.find({price_per_day: {$gte: 50000, $lte: 80000}})
+
+======================================================================
+11. COMMON ERRORS AND ORAL/VIVA REVISION
+======================================================================
+Q: What does CRUD stand for?
+A: Create, Read, Update, Delete.
+
+Q: Is MongoDB relational?
+A: It's a document-oriented NoSQL database, but references and $lookup
+   provide relationships and joins between collections.
+
+Q: Do we have to declare a schema before inserting?
+A: Not normally, though MongoDB can enforce validation rules when configured.
+
+Q: Can documents in one collection have different fields?
+A: Yes, unless validation rules constrain their structure.
+
+Q: What is a primary unique key in MongoDB?
+A: _id, automatically generated when omitted, and uniquely indexed.
+
+Q: Why do we get E11000 duplicate key error?
+A: You inserted an _id or another uniquely indexed value that already exists.
+   Do not rerun the given insertMany with the same fixed ObjectIds.
+
+Q: Why is a collection missing after 'use newDB'?
+A: use switches context; the DB becomes persisted upon storing data.
+
+Q: Can we update all matching documents using updateOne()?
+A: No; updateOne updates one match. Use updateMany for all matches.
+
+Q: Does deleteMany({}) drop a collection?
+A: No; it removes all documents and retains the collection and its indexes.
+
+Q: What does projection {name: 1, _id: 0} mean?
+A: Include name while hiding _id. Don't mix ordinary include/exclude fields,
+   aside from _id, in the same simple projection.
+
+Q: Is {salary: {$gt: 100000}} the same as {$gte: 100000}?
+A: No. $gt excludes the boundary, $gte includes it.
+
+Q: Difference between countDocuments() and estimatedDocumentCount()?
+A: countDocuments accepts a filter and counts matches; estimatedDocumentCount
+   uses collection metadata for an approximate whole-collection count.
+
+Q: Why is the output ordering different each run?
+A: Without an explicit $sort/sort(), order is not guaranteed.
+
+Q: Why are some documents missing after $unwind?
+A: Empty or missing array values are dropped by default; use
+   preserveNullAndEmptyArrays: true when appropriate.
+
+Q: Does MongoDB use foreign keys like SQL automatically?
+A: References can be stored, but cross-collection referential integrity is not
+   enforced by default. Your EVEN dataset deliberately demonstrates a dangling
+   company_id on Rahul's record.
+
+Q: Are MongoDB command names case sensitive?
+A: Yes, names like insertMany, ObjectId and ISODate require exact spelling.
+
+Q: Why do I get a syntax error?
+A: Check braces {}, brackets [], parentheses (), commas, quotes, and whether
+   you're using JavaScript/mongosh syntax in the right environment.
+
+Q: What does {$sum: 1} count when a field is missing?
+A: Every document entering that group; it does not require a salary value.
+
+Q: Does $avg average missing or nonnumeric salaries as zero?
+A: No. $avg ignores nonnumeric and missing values; this can affect results.
+
+Q: What if an extra record is created during CRUD demo?
+A: Delete only that extra practice record before validating original expected
+   answers, or reset your practice DB in a controlled manner.
+
+SAFETY CHECK BEFORE THE EXAM
+- Use mongosh syntax, not SQL.
+- Run 'use companyDB' or 'use partyPlotDB' as appropriate.
+- Do NOT accidentally insert the datasets twice with the same ObjectIds.
+- Insert sample data first, then verify with find().
+- Run questions before any destructive demo update/delete.
+- Preserve exact field names: membership_type, price_per_day,
+  established_year, is_permanent, company_id, plot_id.
+- Use true/false without quotes and numbers without quotes.
+- For aggregate grouping, use '$department', not 'department'.
+- Pay attention to inclusive/exclusive comparison operators.
+- Beware of missing company for Rahul in EVEN source data.
+- If output is unexpectedly empty, inspect the seed data and field types.
+
+======================================================================
+12. BONUS: PART A MAPREDUCE (ALSO IN THE UPLOADED DOCUMENT)
+======================================================================
+The uploaded handout ALSO includes MapReduce Part A. Unlike MongoDB Part B,
+it gives problem descriptions, not sample CSV records or a required language.
+The following executable Python 3 streaming MapReduce scripts are ADDITIONAL
+suggested implementations, not code supplied by the handout. They are shown
+here so one consolidated file covers both parts of the practical.
+
+PART A ODD ORIGINAL QUESTION (paraphrased from source):
+Transaction logs contain timestamp, customer ID, product ID, purchase amount.
+Calculate TOTAL SALES AMOUNT for each product and find the TOP-SELLING product
+by revenue.
+
+Illustrative input CSV, WITHOUT header (not supplied by source):
+2024-10-01T10:00:00,C01,P1,200
+2024-10-01T11:00:00,C02,P2,150
+2024-10-01T12:00:00,C03,P1,100
+
+ODD MAPPER FILE: odd_mapper.py
+----------------------------------------
+#!/usr/bin/env python3
+import sys
+import csv
+for row in csv.reader(sys.stdin):
+    if len(row) != 4:
+        continue
+    timestamp, customer_id, product_id, amount = row
+    try:
+        value = float(amount)
+    except ValueError:
+        continue
+    print(f"{product_id}\t{value}")
+
+ODD REDUCER FILE: odd_reducer.py
+----------------------------------------
+#!/usr/bin/env python3
+import sys
+current = None
+total = 0.0
+top_product = None
+top_revenue = float('-inf')
+for line in sys.stdin:
+    try:
+        product, amount = line.strip().split('\t', 1)
+        amount = float(amount)
+    except ValueError:
+        continue
+    if current is not None and product != current:
+        print(f"{current}\t{total:.2f}")
+        if total > top_revenue:
+            top_product, top_revenue = current, total
+        current, total = product, 0.0
+    if current is None:
+        current = product
+    total += amount
+if current is not None:
+    print(f"{current}\t{total:.2f}")
+    if total > top_revenue:
+        top_product, top_revenue = current, total
+if top_product is not None:
+    print(f"TOP_PRODUCT\t{top_product}\t{top_revenue:.2f}", file=sys.stderr)
+
+LOCAL TEST (on Linux/macOS or a Bash terminal):
+  python3 odd_mapper.py < odd.csv | sort -k1,1 | python3 odd_reducer.py
+Expected stdout for sample: P1 300.00 and P2 150.00 (tab-separated).
+Expected stderr: TOP_PRODUCT P1 300.00.
+NOTE: Streaming reducer INPUT MUST be sorted by mapper key. In distributed
+Hadoop, one reducer sees only its assigned keys: its top product is not
+necessarily the overall top if multiple reducers run. Use a single reducer
+or a separate second MapReduce job to compute global top.
+
+PART A EVEN ORIGINAL QUESTION (paraphrased from source):
+Call records contain caller ID, receiver ID, tower ID, call duration, call
+status. Compute AVERAGE CALL DURATION per tower and display THREE towers with
+highest averages.
+
+Illustrative input CSV, WITHOUT header (not supplied by source):
+C1,C2,T1,60,Completed
+C2,C3,T2,120,Completed
+C3,C4,T1,30,Missed
+C4,C5,T3,90,Completed
+
+EVEN MAPPER FILE: even_mapper.py
+----------------------------------------
+#!/usr/bin/env python3
+import sys
+import csv
+for row in csv.reader(sys.stdin):
+    if len(row) != 5:
+        continue
+    caller, receiver, tower, duration, status = row
+    try:
+        value = float(duration)
+    except ValueError:
+        continue
+    print(f"{tower}\t{value}")
+
+EVEN REDUCER FILE: even_reducer.py
+----------------------------------------
+#!/usr/bin/env python3
+import sys
+averages = []
+current = None
+total = 0.0
+count = 0
+for line in sys.stdin:
+    try:
+        tower, value = line.strip().split('\t', 1)
+        value = float(value)
+    except ValueError:
+        continue
+    if current is not None and tower != current:
+        averages.append((total / count, current))
+        current, total, count = tower, 0.0, 0
+    if current is None:
+        current = tower
+    total += value
+    count += 1
+if current is not None:
+    averages.append((total / count, current))
+for avg, tower in sorted(averages, key=lambda x: (-x[0], x[1])):
+    print(f"{tower}\t{avg:.2f}")
+print("TOP THREE TOWERS:", file=sys.stderr)
+for avg, tower in sorted(averages, key=lambda x: (-x[0], x[1]))[:3]:
+    print(f"{tower}\t{avg:.2f}", file=sys.stderr)
+
+LOCAL TEST (on Linux/macOS or a Bash terminal):
+  python3 even_mapper.py < even.csv | sort -k1,1 | python3 even_reducer.py
+Illustrative result (all call statuses included as problem did not state a
+filter): T2 120, T3 90, T1 45. If an instructor specifies COMPLETED calls
+only, filter rows by status == "Completed" in the mapper. That is an added
+assumption, NOT stated in the uploaded handout.
+NOTE: reducer is for teaching/local single-reducer use; in Hadoop with more
+than one reducer, a second global-top job is needed for top three overall.
+
+MAPREDUCE QUICK VIVA
+Q: What does the mapper do?
+A: Produces key-value pairs, e.g. (product_id, amount) or (tower, duration).
+Q: What does the reducer do?
+A: Aggregates values per key, e.g. sum or sum/count.
+Q: Why sort/shuffle?
+A: Makes values with the same key available together to the reducer.
+Q: Why use sum/count for average, not average of averages?
+A: Averages of groups with unequal counts cannot be simply averaged;
+   carry both sum and count and divide only after combining.
+Q: How is top three calculated?
+A: Sort the per-tower averages descending then select first three. In a
+   distributed MapReduce system, a final global aggregation is needed.
+
+======================================================================
+FINAL 30-SECOND COMMAND CHEAT SHEET
+======================================================================
+  db.collection.find({field: {$gt: value}})
+  db.collection.find({field: {$lt: ISODate("YYYY-MM-DD")}})
+  db.collection.find({a: v1, b: v2})
+  db.collection.updateOne({filter}, {$set: {field: newValue}})
+  db.collection.deleteOne({filter})
+  db.collection.aggregate([{$match: {filter}}])
+  db.collection.aggregate([{$group: {_id: "$field", total: {$sum: "$x"}}}])
+  db.collection.aggregate([{$group: {_id: "$field", count: {$sum: 1}}}])
+  db.collection.aggregate([{$group: {_id: "$field", avg: {$avg: "$x"}}}])
+  {$lookup: {from: "other", localField: "foreign_id", foreignField: "_id", as: "joined"}}
+  {$unwind: "$joined"}
+  {$project: {_id: 0, name: 1, other_name: "$joined.name"}}
+
+END OF EXPANDED STUDY NOTES
